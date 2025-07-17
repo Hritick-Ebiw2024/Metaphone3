@@ -1,0 +1,139 @@
+<HTML>
+<HEAD>
+<TITLE>
+ScoredHomeophone.h
+</TITLE>
+</HEAD>
+<BODY>
+<PRE>
+<font color="green">/**
+ * Declaration and implementation file for scoredHomeophone class.
+ *
+ * copyright (c) 2009 by Lawrence Philips and Anthropomorphic Software LLC
+ */</font>
+
+<font color="blue">#include</font> <font color="maroon">&#60;string&#62;</font>
+<font color="blue">using</font> <font color="blue">namespace</font> std;
+
+<font color="green">/**
+ * The scoredHomeophone class is a data class designed to wrap a
+ * word which is a homeophone of the initial search string, its edit
+ * distance (Levenshtein distance) score from this initial search
+ * string, and a definition, if any.
+ *
+ */</font>
+<font color="blue">class</font> scoredHomeophone
+<font color="black">{</font>
+<font color="blue">private</font><font color="black">:</font>
+
+    <font color="green">/** Levenshtein distance of this word from the initial search string. */</font>
+    <font color="blue">int</font> score;
+
+    <font color="green">/** Hypothetically, a homeophone of the initial search string. A homeophone
+    * is a word which sounds similar, but not necessarily exactly the same,
+    * as another word. */</font>
+    string word;
+
+    <font color="green">/** A definition of the word, if WordNet has supplied one. */</font>
+    string definition;
+
+<font color="blue">public</font><font color="black">:</font>
+
+    <font color="green">/**
+     * Parameterized constructor initialized with Levenshtein
+     * distance score, and the word in question.
+     *
+     * @param inScore The Levenshtein distance score from the
+     *                initial search string.
+     * @param inWord  A character pointer to the homeophone of
+     *                the original search string.
+     */</font>
+    scoredHomeophone<font color="black">(</font><font color="blue">int</font> inScore, <font color="blue">char</font><font color="black">*</font> inWord<font color="black">)</font>
+    <font color="black">{</font>
+        score <font color="black">=</font> inScore;
+        word <font color="black">=</font> inWord;
+    <font color="black">}</font>
+
+    <font color="green">/**
+     * Comparison operator required for objects which are to be stored
+     * in sorted order in collection objects. This class is sorted by
+     * Levenshtein distance score.
+     *
+     * @param
+     *
+     * @return true if the Levenshtein distance of the object on
+     *         the right hand side of the operator is less than
+     *         the Levenshtein distance of the object on the left.
+     */</font>
+    <font color="blue">bool</font> scoredHomeophone<font color="black">:</font><font color="black">:</font><font color="blue">operator</font><font color="black">&#60;</font><font color="black">(</font> <font color="blue">const</font> scoredHomeophone<font color="black">&</font> rhs<font color="black">)</font><font color="blue">const</font>
+    <font color="black">{</font>
+        <font color="blue">return</font> <font color="black">(</font><font color="blue">this</font><font color="black">-</font><font color="black">&#62;</font>score <font color="black">&#60;</font> rhs.score<font color="black">)</font>;
+    <font color="black">}</font>   
+
+    <font color="green">/**
+     * Retrieve the word as a pointer to a character string.
+     *
+     * @return a character pointer to the word stored in this object.
+     */</font>
+    <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> getWord<font color="black">(</font><font color="black">)</font>
+    <font color="black">{</font>
+        <font color="blue">return</font> word.c_str<font color="black">(</font><font color="black">)</font>;
+    <font color="black">}</font>
+
+    <font color="green">/**
+     * Retrieve the word as a std::string object.
+     *
+     * @return a reference to the string object containing the word stored in this object.
+     */</font>
+    string getString<font color="black">(</font><font color="black">)</font>
+    <font color="black">{</font>       
+        <font color="blue">return</font> word;
+    <font color="black">}</font>
+    
+    <font color="green">/**
+     * Retrieve the Levenshtein distance score.
+     *
+     * @return an integer representing the Levenshtein distance
+     *         between this word and the search string. 
+     */</font>
+    <font color="blue">int</font> getScore<font color="black">(</font><font color="black">)</font>
+    <font color="black">{</font>
+        <font color="blue">return</font> score;
+    <font color="black">}</font>
+    
+    <font color="green">/**
+     * Set the Levenshtein distance score.
+     *
+     * @param an integer representing the Levenshtein distance
+     *        between this word and the search string. 
+     */</font>
+    <font color="blue">void</font> setScore<font color="black">(</font><font color="blue">int</font> inScore<font color="black">)</font>
+    <font color="black">{</font>
+        score <font color="black">=</font> inScore;
+    <font color="black">}</font>
+
+    <font color="green">/**
+     * Store the definition of the word.
+     *
+     * @param a character pointer to the definition of the word.
+     */</font>
+    <font color="blue">void</font> setDefinition<font color="black">(</font><font color="blue">char</font><font color="black">*</font> inDefinition<font color="black">)</font>
+    <font color="black">{</font>
+        definition <font color="black">=</font> inDefinition ;
+    <font color="black">}</font>
+
+    <font color="green">/**
+     * Retrieve a pointer to the character string
+     * storing the definition of the word.
+     *
+     * @return a character pointer to the definition of the word in question.
+     *         if WordNet has not supplied a definition, a null string will be returned.
+     */</font>
+    <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> getDefinition<font color="black">(</font><font color="black">)</font>
+    <font color="black">{</font>
+        <font color="blue">return</font> definition.c_str<font color="black">(</font><font color="black">)</font>;
+    <font color="black">}</font>   
+<font color="black">}</font>;
+</PRE>
+</BODY>
+</HTML>

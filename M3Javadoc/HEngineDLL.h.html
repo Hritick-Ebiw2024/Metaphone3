@@ -1,0 +1,400 @@
+<HTML>
+<HEAD>
+<TITLE>
+HEngineDLL.h
+</TITLE>
+</HEAD>
+<BODY>
+<PRE>
+<font color="green">/**
+ * The Homeophone Engine is copyright (c)2009 by Lawrence Philips and
+ * Anthropomorphic Software LLC.
+ * 
+ * The Homeophone Engine is a class that takes a search string, which is
+ * presumed to be a correctly or incorrectly spelled english word or a name
+ * that might be familiar to americans, and returns a ranked list of words
+ * found in its dictionary that are calculated to sound similar, according to
+ * a user-variable definition of similarity. Definitions for these similar sounding
+ * words, if present in the database, can also be returned.
+ *
+ * THE HOMEOPHONE ENGINE AND METAPHONE3 ARE PROVIDED "AS IS" WITHOUT
+ * WARRANTY OF ANY KIND. LAWRENCE PHILIPS AND ANTHROPOMORPHIC SOFTWARE LLC
+ * MAKE NO WARRANTIES, EXPRESS OR IMPLIED, THAT THEY ARE FREE OF ERROR,
+ * OR ARE CONSISTENT WITH ANY PARTICULAR STANDARD OF MERCHANTABILITY, 
+ * OR THAT THEY WILL MEET YOUR REQUIREMENTS FOR ANY PARTICULAR APPLICATION.
+ * LAWRENCE PHILIPS AND ANTHROPOMORPHIC SOFTWARE LLC DISCLAIM ALL LIABILITY
+ * FOR DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES RESULTING FROM USE 
+ * OF THIS SOFTWARE.
+ * 
+ * The dictionary definitions used by the Homeophone Engine have been supplied
+ * by Princeton University's WordNet project, and may be used without
+ * restriction as long as the following copyright notice and statements, 
+ * including the disclaimer, appear on ALL copies of the software, database and  
+ * documentation, including modifications that you make for internal  
+ * use or for distribution.  
+ * 
+ * WordNet 2.1 Copyright 2005 by Princeton University.  All rights reserved.  
+ *   
+ * THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND PRINCETON  
+ * UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR  
+ * IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, PRINCETON  
+ * UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES OF MERCHANT-  
+ * ABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE  
+ * OF THE LICENSED SOFTWARE, DATABASE OR DOCUMENTATION WILL NOT  
+ * INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS, TRADEMARKS OR  
+ * OTHER RIGHTS.  
+ *   
+ * The name of Princeton University or Princeton may not be used in  
+ * advertising or publicity pertaining to distribution of the software  
+ * and/or database.  Title to copyright in this software, database and  
+ * any associated documentation shall at all times remain with  
+ * Princeton University and LICENSEE agrees to preserve same.  
+ */</font>
+
+<font color="blue">#pragma</font> once
+
+<font color="blue">#include</font> <font color="maroon">"..\..\WordNetReader\WordNetReader\HEngineDBSet.h"</font>
+<font color="blue">#include</font> <font color="maroon">"..\..\WordNetReader\WordNetReader\HEngineDBSmallSet.h"</font>
+<font color="blue">#include</font> <font color="maroon">"..\..\HomeophoneEngine\HomeophoneEngine\ScoredHomeophone.h"</font>
+<font color="blue">#include</font> <font color="maroon">"..\..\HomeophoneEngine\HomeophoneEngine\Metaphone3.h"</font>
+<font color="blue">#include</font> <font color="maroon">"string.h"</font>
+<font color="blue">#include</font> <font color="maroon">&#60;string&#62;</font>
+<font color="blue">#include</font> <font color="maroon">&#60;set&#62;</font>
+<font color="blue">#include</font> <font color="maroon">&#60;list&#62;</font>
+<font color="blue">#include</font> <font color="maroon">&#60;vector&#62;</font>
+
+<font color="blue">using</font> <font color="blue">namespace</font> std;
+
+<font color="green">/////////////////////////////////////////////////</font>
+<font color="green">// Mnemonic constants for function parameters</font>
+<font color="green">// and constant for default ceiling for edit</font>
+<font color="green">//  distance scores</font>
+<font color="green">/////////////////////////////////////////////////</font>
+
+<font color="green">/** flag to send into getResultsListWithDefinitions()
+* when  you want definitions, if any, to be returned
+* with the result list */</font>
+<font color="blue">const</font> <font color="blue">bool</font> GET_DEFINITIONS <font color="black">=</font> <font color="blue">true</font>;
+<font color="green">/** flag to send into getResultsListWithDefinitions()
+* when  you do NOT want definitions, if any, to be
+* returned with the result list */</font>
+<font color="blue">const</font> <font color="blue">bool</font> NO_DEFINITIONS <font color="black">=</font> <font color="blue">false</font>;
+<font color="green">/** flag to send in to GetEditDistanceMatches() when
+* you want the word set to be words in the database that
+* start with the same SOUND as the initial search string*/</font>
+<font color="blue">const</font> <font color="blue">bool</font> PHONETIC <font color="black">=</font> <font color="blue">true</font>;
+<font color="green">/** flag to send in to GetEditDistanceMatches() when
+* you want the word set to be words in the database that
+* start with the same LETTER as the initial search string*/</font>
+<font color="blue">const</font> <font color="blue">bool</font> SPELLING_ONLY <font color="black">=</font> <font color="blue">false</font>;
+<font color="green">/** flag to send in to Homeophone Engine calls when you want
+* the "exact" keys to be used. This includes both the "exact"
+* setting of Metaphone3 that does NOT map all voiced/unvoiced
+* pairs to the same encoding, that is, the distinctions are 
+* maintained, as well as the setting that causes non-initial
+* vowels to be encoded */</font>
+<font color="blue">const</font> <font color="blue">bool</font> EXACT <font color="black">=</font> <font color="blue">true</font>;
+<font color="green">/** flag to send in to Homeophone Engine calls when you want
+* the approximate keys to be used. This encoding is the one
+* used in previous versions of Metaphone that maps all
+* voiced/unvoiced pairs to the same encoding */</font>
+<font color="blue">const</font> <font color="blue">bool</font> APPROXIMATE <font color="black">=</font> <font color="blue">false</font>;
+<font color="green">/** flag to send in to Homeophone Engine calls when you want
+* the primary encoded Metaphone3 key to be returned or used.*/</font>
+<font color="blue">const</font> <font color="blue">bool</font> MAIN_METAPH <font color="black">=</font> <font color="blue">true</font>;
+<font color="green">/** flag to send in to Homeophone Engine calls when you want
+* the alternate encoded Metaphone3 key to be returned or used.*/</font>
+<font color="blue">const</font> <font color="blue">bool</font> ALTERNATE_METAPH <font color="black">=</font> <font color="blue">false</font>;
+<font color="green">/** Constant representing the largest Levenshtein Distance score
+* that a returned word can have from the initial search string
+* and still be included in the processed version of the results.*/</font>
+<font color="blue">const</font> <font color="blue">int</font> CUTOFF_SCORE <font color="black">=</font> <font color="maroon">6</font>;
+
+<font color="green">/**
+ * The Homeophone Engine is a class that takes a search string, which is
+ * presumed to be a correctly or incorrectly spelled english word, or a name
+ * that might be familiar to americans, and returns a ranked list of words
+ * found in its dictionary that are calculated to sound similar, according to
+ * a programmer-variable definition of similarity. Definitions for these similar sounding
+ * words, if present in the database, can also be returned.
+ * &#60;br&#62;&#60;br&#62;
+ * The engine operates by first converting the input string into a Metaphone3
+ * "phonetic" encoding, using both the "exact" and vowel-place preserving settings
+ * to produce (hopefully) closer matches, and also a regular, more approximate setting
+ * where voiced and unvoiced pairs are always mapped to the same "phonetic" representation,
+ *  and non-initial vowels are not encoded in any form.
+ * &#60;br&#62;&#60;br&#62;
+ * The engine then retrieves a list of words found in the HEngineDB database whose
+ * (stored, pre-calculated) metaphs match that of the input string. These are then
+ * ranked against various vectors to produce a list with the best matches at the beginning
+ * of the list. If desired, the associated definitions of the result list words, if
+ * any, can also be retrieved.
+ * &#60;br&#62;&#60;br&#62;
+ * Edit Distance/Levenshtein Distance match lists are also available, either
+ * in a version which only searches against words in the database with the same first
+ * letter as the input string, or as a version that ranks against a list of words
+ * in the database starting with the same sound as the input string.
+ * &#60;br&#62;&#60;br&#62;
+ * &#60;b&#62;Database&#60;/b&#62;&#60;br&#62;
+ * The Homeophone Engine cannot function without its database, HEngineDB.mdb, which is an
+ * MS Access database, and which should be registered with your Windows system's ODBC
+ * Administrator in association with an Access driver, or another database driver that
+ * is compatible with .mdb databases, using the name HEngineDB so that the
+ * Homeophone Engine DLL will be able to locate it and use it.
+ * &#60;br&#62;&#60;br&#62;
+ * &#60;b&#62;Dictionary&#60;/b&#62;&#60;br&#62;
+ * The dictionary definitions used by the Homeophone Engine have been supplied
+ * by Princeton University's WordNet project, and may be used without
+ * restriction as long as the following copyright notice and statements, 
+ * including the disclaimer, appear on ALL copies of the software, database and  
+ * documentation, including modifications that you make for internal  
+ * use or for distribution.  
+ * &#60;br&#62;&#60;br&#62; 
+ * WordNet 2.1 Copyright 2005 by Princeton University.  All rights reserved.  
+ *  &#60;br&#62;&#60;br&#62;  
+ * THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND PRINCETON  
+ * UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR  
+ * IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, PRINCETON  
+ * UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES OF MERCHANT-  
+ * ABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE  
+ * OF THE LICENSED SOFTWARE, DATABASE OR DOCUMENTATION WILL NOT  
+ * INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS, TRADEMARKS OR  
+ * OTHER RIGHTS.  
+ *  &#60;br&#62;&#60;br&#62;  
+ * The name of Princeton University or Princeton may not be used in  
+ * advertising or publicity pertaining to distribution of the software  
+ * and/or database.  Title to copyright in this software, database and  
+ * any associated documentation shall at all times remain with  
+ * Princeton University and LICENSEE agrees to preserve same.  
+ * &#60;br&#62;&#60;br&#62;
+ */</font>
+<font color="blue">class</font> HomeophoneEngine
+<font color="black">{</font>
+    <font color="green">/** pointer to a recordset object that
+    * only sees the words in the HEngineDB
+    * database. This is needed to make edit
+    * distance processing as fast as possible
+    */</font>
+    HEngineDBSmallSet<font color="black">*</font> smallSet;
+
+    <font color="green">/** pointer to a recordset object that
+    * sees all the fields in HEngineDB
+    */</font>
+    HEngineDBSet<font color="black">*</font> fullSet;
+
+    <font color="green">/** pointer to the database object
+    * that addresses HEngineDB
+    */</font>
+    CDatabase<font color="black">*</font> db;
+
+    <font color="green">/** a Metaphone3 object */</font>
+    Metaphone3 metaphone3;
+
+    <font color="green">/** a std::multiset collection of scoredHomeophone
+    * objects, used to keep the objects in edit distance
+    * score order */</font>
+    multiset<font color="black">&#60;</font>scoredHomeophone<font color="black">&#62;</font> results;
+
+    <font color="green">/** a std::vector of scoredHomeophone object,
+    * used to store the objects in a non-edit-distance
+    * order */</font>
+    vector<font color="black">&#60;</font>scoredHomeophone<font color="black">&#62;</font> HList;
+
+    <font color="green">/** a std::vector of std::strings, used to
+    * return a simple list of std::string objects */</font>
+    vector<font color="black">&#60;</font>string<font color="black">&#62;</font> wordList;
+
+    <font color="green">/** internal storage for the original
+    * input search string */</font>
+    string inputString;
+
+    <font color="green">/** internal storage for the "exact"
+    * primary metaphone encoded key */</font>
+    string metaphExact;
+
+    <font color="green">/** internal storage for the "exact"
+    * alternate metaphone encoded key, if any */</font>
+    string metaphAlternateExact;
+
+    <font color="green">/** internal storage for the regular
+    * primary metaphone encoded key */</font>
+    string metaph;
+
+    <font color="green">/** internal storage for the regular
+    * alternate metaphone encoded key, if any */</font>
+    string metaphAlternate;
+
+    <font color="green">/**
+     * A simple utility funtion that returns true
+     * if the character is a vowel.
+     *
+     * @param the character
+     *
+     * @return true if the character is a vowel
+     */</font>
+    <font color="blue">bool</font> IsVowel<font color="black">(</font><font color="blue">char</font> it<font color="black">)</font>;
+
+    <font color="green">/**
+     * Utility function that returns true
+     * if the first vowel group in the word
+     * is likely to be pronounced as a front
+     * vowel or dipthong
+     *
+     * @param inString a character pointer to the word 
+     *                to be evaluated
+     *
+     * @return true if the first vowel group in the 
+     *         word seems to be likely to be pronounced 
+     *         as a front vowel.
+     *
+     */</font>
+    <font color="blue">bool</font> FrontVowelLead<font color="black">(</font><font color="blue">const</font> <font color="blue">char</font> <font color="black">*</font> inString<font color="black">)</font>;
+
+    <font color="green">/**
+     * Implementation of the Levenshtein Distance algorithm
+     *
+     * @param str1 one word
+     *
+     * @param str2 another word
+     *
+     * @return an integer score representing "the minimum number
+     * of operations needed to transform one string into the other,
+     * where an operation is an insertion, deletion, or substitution
+     * of a single character"
+     *     
+     */</font>
+    <font color="blue">int</font> LevenshteinDistance<font color="black">(</font><font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> str1, <font color="blue">char</font><font color="black">*</font> str2<font color="black">)</font>;
+    
+    <font color="green">/**
+     * Internal utility function used to get the Scored Homeophone results according
+     * to the parameterized settings so that the public functions can process them further.
+     *
+     * @param exact true (EXACT) if matches against the "exact" encoding are desired,
+     *              false (APPROXIMATE) if the regular encoding is to be used.
+     *
+     * @param mainMetaph true (MAIN_METAPH) if matches against the primary encoding are desired,
+     *                   false (ALTERNATE_METAPH) if the alternate encoding is to be used.
+     *
+     * @param getDefinitions true (GET_DEFINITIONS) if you want the definitions (if any)
+     *                       of the result words to be returned, false (NO_DEFINITIONS) if not.
+     *
+     * @return a std::multiset collection of scoredHomeophone objects which store the
+     *         score (and possibly the definition, if called for and present) for each homeophone.
+     */</font>
+    multiset<font color="black">&#60;</font>scoredHomeophone<font color="black">&#62;</font><font color="black">&</font> GetMatchesScoredHomeophone<font color="black">(</font><font color="blue">bool</font> exact <font color="black">=</font> EXACT, 
+                                                        <font color="blue">bool</font> mainMetaph <font color="black">=</font> MAIN_METAPH,
+                                                        <font color="blue">bool</font> getDefinitions <font color="black">=</font> NO_DEFINITIONS<font color="black">)</font>;
+
+<font color="blue">public</font><font color="black">:</font>
+
+    <font color="green">/**
+     * Homeophone Engine constructor. Opens HEngineDB database
+     * and intializes internal database objects. These operations
+     * are relatively time consuming, and therefore the Homeophone
+     * Engine object should be constructed and deleted as seldom
+     * as possible. Also, keep in mind that the Homeophone Engine
+     * object owns the memory that the results are returned in, so
+     * to be safe, the object should not be deallocated until the
+     * program is done with searching and displaying results.
+     *
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> HomeophoneEngine<font color="black">(</font><font color="blue">void</font><font color="black">)</font>;
+
+    <font color="green">/**
+     * Homeophone Engine destructor. Closes the connection
+     * to the HEngineDB database and deletes the internal database
+     * objects.
+     *
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> ~HomeophoneEngine<font color="black">(</font><font color="blue">void</font><font color="black">)</font>;
+    
+    <font color="green">/**
+     * Sets word to be encoded.
+     * 
+     * @param in pointer to EXTERNALLY ALLOCATED 
+     * char string of the word to be encoded. 
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> <font color="blue">void</font> SetWord<font color="black">(</font><font color="blue">char</font><font color="black">*</font> in<font color="black">)</font>;
+
+    <font color="green">/**
+     * Retrieve the primary Metaphone3 encoding of the input string.
+     * Either the "exact" or regular version of the primary metaph
+     * can be called for.
+     *
+     * @param exact true (EXACT) if the "exact" version of the key is desired,
+     *              false (APPROXIMATE) for the regular version.
+     *
+     * @return a character pointer to the primary encoded key.
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> GetMetaph<font color="black">(</font><font color="blue">bool</font> exact <font color="black">=</font> EXACT<font color="black">)</font>;
+
+    <font color="green">/**
+     * Retrieve the alternate Metaphone3 encoding of the input string,
+     * if any. Either the "exact" or regular version of the alternate
+     * metaph can be called for.
+     *
+     * @param exact true (EXACT) if the "exact" version of the key is desired,
+     *              false (APPROXIMATE) for the regular version.
+     *
+     * @return a character pointer to the alternate encoded key, if any. If
+     * there is no alternate key, a null string will be returned.
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> GetAlternateMetaph<font color="black">(</font><font color="blue">bool</font> exact <font color="black">=</font> EXACT<font color="black">)</font>;
+
+    <font color="green">/**
+     * Retrieve the Edit Distance/Levenshtein Distance matches to the original
+     * search string with a Levenshtein distance score of six or less.
+     *
+     * @param phonetic If phonetic is false, only search words beginning with the
+     *        same letter as the initial search string. If phonetic is true, search
+     *        words in the database starting with the same sound as the original
+     *        search string.
+     *
+     * @return a std::multiset collection of scoredHomeophone objects which store the
+     *         score for each homeophone, but not a definition.
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> multiset<font color="black">&#60;</font>scoredHomeophone<font color="black">&#62;</font><font color="black">&</font> GetEditDistanceMatches<font color="black">(</font><font color="blue">bool</font> phonetic <font color="black">=</font> PHONETIC<font color="black">)</font>;
+
+    <font color="green">/**
+     * Return a list of matches to the phonetic encoding of the input string ranked by
+     * Levenshtein distance. This function allows the calling programmer to specify both
+     * whether or not to use the "exact" encoding or the approximate, as well as the
+     * primary vs. the alternate encoding.
+     *
+     * @param exact true (EXACT) if matches against the "exact" encoding are desired,
+     *              false (APPROXIMATE) if the regular encoding is to be used.
+     *
+     * @param mainMetaph true (MAIN_METAPH) if matches against the primary encoding are desired,
+     *                   false (ALTERNATE_METAPH) if the alternate encoding is to be used.
+     *
+     * @return a std::vector collection of std::string objects.
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> vector<font color="black">&#60;</font>string<font color="black">&#62;</font><font color="black">&</font> GetMatches<font color="black">(</font><font color="blue">bool</font> exact <font color="black">=</font> EXACT, <font color="blue">bool</font> mainMetaph <font color="black">=</font> MAIN_METAPH<font color="black">)</font>;
+
+    <font color="green">/**
+     * The best available list of homeophone matches against the original search
+     * string is ranked for similarity to the original search string in a number of vectors.
+     *
+     * @return a std::vector collection of std::string objects.
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> vector<font color="black">&#60;</font>string<font color="black">&#62;</font><font color="black">&</font> GetResultsList<font color="black">(</font><font color="black">)</font>;
+
+    <font color="green">/**
+     * The best available list of homeophone matches against the original search
+     * string is ranked for similarity to the original search in a number of vectors.
+     * This list is packaged with the Levenshtein distance scores and definition
+     * (if any) for each homeophone match word.
+     *
+     * @param getDefinitions true (GET_DEFINITIONS) if you want the definitions (if any)
+     *                       of the result words to be returned, false (NO_DEFINITIONS) if not.
+     *
+     * @return a std::vector collection of scoredHomeophone objects.
+     */</font>
+    __declspec<font color="black">(</font>dllexport<font color="black">)</font> vector<font color="black">&#60;</font>scoredHomeophone<font color="black">&#62;</font><font color="black">&</font> GetResultsListWithDefinitions<font color="black">(</font><font color="blue">bool</font> getDefinitions <font color="black">=</font> GET_DEFINITIONS<font color="black">)</font>;
+
+<font color="black">}</font>;
+
+
+</PRE>
+</BODY>
+</HTML>

@@ -1,0 +1,483 @@
+<HTML>
+<HEAD>
+<TITLE>
+Metaphone3.h
+</TITLE>
+</HEAD>
+<BODY>
+<PRE>
+<font color="blue">#if</font> <font color="black">!</font>defined<font color="black">(</font>METAPHONE3_H<font color="black">)</font>
+<font color="blue">#define</font> METAPHONE3_H
+<font color="green">/**
+ * 
+ * Metaphone 3&#60;br&#62;
+ * by Lawrence Philips&#60;br&#62;
+ * The Metaphone 3 algorithm is patent pending, and may not be used in commercial applications
+ * without express consent of Anthropomorphic Software LLC and Lawrence Philips.&#60;br&#62;&#60;br&#62;
+ * 
+ * Metaphone 3 is designed to return an *approximate* phonetic key (and an alternate
+ * approximate phonetic key when appropriate) that should be the same for English
+ * words, and most names familiar in the United States, that are pronounced *similarly*.
+ * The key value is *not* intended to be an *exact* phonetic, or even phonemic,
+ * representation of the word. This is because a certain degree of 'fuzziness' has
+ * proven to be useful in compensating for variations in pronunciation, as well as
+ * misheard pronunciations. For example, although americans are not usually aware of it,
+ * the letter 's' is normally pronounced 'z' at the end of words such as "sounds".&#60;br&#62;&#60;br&#62;
+ * 
+ * The 'approximate' aspect of the encoding is implemented according to the following rules:&#60;br&#62;&#60;br&#62;
+ * 
+ * (1) All vowels are encoded to the same value - 'A'. If the parameter encodeVowels
+ * is set to false, only *initial* vowels will be encoded at all. If encodeVowels is set
+ * to true, 'A' will be encoded at all places in the word that any vowels are normally
+ * pronounced. 'W' as well as 'Y' are treated as vowels. Although there are differences in
+ * the pronunciation of 'W' and 'Y' in different circumstances that lead to their being
+ * classified as vowels under some circumstances and as consonants in others, for the purposes
+ * of the 'fuzziness' component of the Soundex and Metaphone family of algorithms they will
+ * be always be treated here as vowels.&#60;br&#62;&#60;br&#62;
+ *
+ * (2) Voiced and un-voiced consonant pairs are mapped to the same encoded value. This
+ * means that:&#60;br&#62;
+ * 'D' and 'T' -&#62; 'T'&#60;br&#62;
+ * 'B' and 'P' -&#62; 'P'&#60;br&#62;
+ * 'G' and 'K' -&#62; 'K'&#60;br&#62;
+ * 'Z' and 'S' -&#62; 'S'&#60;br&#62;
+ * 'V' and 'F' -&#62; 'F'&#60;br&#62;&#60;br&#62;
+ *
+ * - In addition to the above voiced/unvoiced rules, 'CH' and 'SH' -&#62; 'X', where 'X'
+ * represents the "-SH-" and "-CH-" sounds in Metaphone 3 encoding.&#60;br&#62;&#60;br&#62;
+ *
+ * - Also, the sound that is spelled as "TH" in english is encoded to '0' (zero symbol). (Although
+ * americans are not usually aware of it, "TH" is pronounced in a voiced (e.g. "that") as
+ * well as an unvoiced (e.g. "theater") form, which are naturally mapped to the same encoding.)&#60;br&#62;&#60;br&#62;
+ * 
+ * The encodings in this version of Metaphone 3 are according to pronunciations common in the
+ * United States. This means that they will be inaccurate for consonant pronunciations that
+ * are different in the United Kingdom, for example "tube" -&#62; "CHOOBE" -&#62; XAP rather than american TAP.&#60;br&#62;&#60;br&#62;
+ *
+ * Metaphone 3 was preceded by by Soundex, patented in 1919, and Metaphone and Double Metaphone,
+ * developed by Lawrence Philips. All of these algorithms resulted in a significant number of
+ * incorrect encodings. Metaphone3 was tested against a database of about 100 thousand English words,
+ * names common in the United States, and non-English words found in publications in the United States,
+ * with an emphasis on words that are commonly mispronounced, prepared by the Moby Words website,
+ * but with the Moby Words 'phonetic' encodings algorithmically mapped to Double Metaphone encodings.
+ * Metaphone3 increases the accuracy of encoding of English words, common names, and non-English
+ * words found in american publications from the 89% for Double Metaphone, to over 98%.&#60;br&#62;&#60;br&#62;
+ *
+ * DISCLAIMER:
+ * Anthropomorphic Software LLC claims only that Metaphone 3 will return correct encodings,
+ * within the 'fuzzy' definition of correct as above, for a very high percentage of correctly
+ * spelled English and commonly recognized non-English words. Anthropomorphic Software LLC
+ * warns the user that a number of words remain incorrectly encoded, that misspellings may not
+ * be encoded 'properly', and that people often have differing ideas about the pronunciation
+ * of a word. Therefore, Metaphone 3 is not guaranteed to return correct results every time, and
+ * so a desired target word may very well be missed. Creators of commercial products should
+ * keep in mind that systems like Metaphone 3 produce a 'best guess' result, and should
+ * condition the expectations of end users accordingly.&#60;br&#62;&#60;br&#62;
+ *
+ * METAPHONE3 IS PROVIDED "AS IS" WITHOUT
+ * WARRANTY OF ANY KIND. LAWRENCE PHILIPS AND ANTHROPOMORPHIC SOFTWARE LLC
+ * MAKE NO WARRANTIES, EXPRESS OR IMPLIED, THAT IT IS FREE OF ERROR,
+ * OR ARE CONSISTENT WITH ANY PARTICULAR STANDARD OF MERCHANTABILITY, 
+ * OR THAT IT WILL MEET YOUR REQUIREMENTS FOR ANY PARTICULAR APPLICATION.
+ * LAWRENCE PHILIPS AND ANTHROPOMORPHIC SOFTWARE LLC DISCLAIM ALL LIABILITY
+ * FOR DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES RESULTING FROM USE 
+ * OF THIS SOFTWARE.
+ *
+ */</font>
+
+
+<font color="blue">#include</font> <font color="maroon">&#60;string&#62;</font>
+<font color="blue">#include</font> <font color="maroon">&#60;algorithm&#62;</font>
+<font color="blue">#include</font> <font color="maroon">&#60;cctype&#62;</font>
+<font color="blue">using</font> <font color="blue">namespace</font> std;
+
+<font color="green">/** Default size of key storage allocation */</font>
+<font color="blue">const</font> <font color="blue">int</font> MAX_KEY_ALLOCATION <font color="black">=</font> <font color="maroon">16</font>;
+<font color="green">/** Default maximum length of encoded key. */</font>
+<font color="blue">const</font> <font color="blue">int</font> DEFAULT_MAX_KEY_LENGTH <font color="black">=</font> <font color="maroon">8</font>;
+
+ <font color="green">/**
+ * Metaphone 3 is designed to return an &#60;i&#62;approximate&#60;/i&#62; phonetic key (and an alternate
+ * approximate phonetic key when appropriate) that should be the same for English
+ * words, and most names familiar in the United States, that are pronounced "similarly".
+ * The key value is &#60;i&#62;not&#60;/i&#62; intended to be an exact phonetic, or even phonemic,
+ * representation of the word. This is because a certain degree of 'fuzziness' has
+ * proven to be useful in compensating for variations in pronunciation, as well as
+ * misheard pronunciations. For example, although americans are not usually aware of it,
+ * the letter 's' is normally pronounced 'z' at the end of words such as "sounds".&#60;br&#62;&#60;br&#62;
+ * 
+ * The 'approximate' aspect of the encoding is implemented according to the following rules:&#60;br&#62;&#60;br&#62;
+ * 
+ * (1) All vowels are encoded to the same value - 'A'. If the parameter encodeVowels
+ * is set to false, only *initial* vowels will be encoded at all. If encodeVowels is set
+ * to true, 'A' will be encoded at all places in the word that any vowels are normally
+ * pronounced. 'W' as well as 'Y' are treated as vowels. Although there are differences in
+ * the pronunciation of 'W' and 'Y' in different circumstances that lead to their being
+ * classified as vowels under some circumstances and as consonants in others, for the purposes
+ * of the 'fuzziness' component of the Soundex and Metaphone family of algorithms they will
+ * be always be treated here as vowels.&#60;br&#62;&#60;br&#62;
+ *
+ * (2) Voiced and un-voiced consonant pairs are mapped to the same encoded value. This
+ * means that:&#60;br&#62;
+ * 'D' and 'T' -&#62; 'T'&#60;br&#62;
+ * 'B' and 'P' -&#62; 'P'&#60;br&#62;
+ * 'G' and 'K' -&#62; 'K'&#60;br&#62;
+ * 'Z' and 'S' -&#62; 'S'&#60;br&#62;
+ * 'V' and 'F' -&#62; 'F'&#60;br&#62;&#60;br&#62;
+ *
+ * - In addition to the above voiced/unvoiced rules, 'CH' and 'SH' -&#62; 'X', where 'X'
+ * represents the "-SH-" and "-CH-" sounds in Metaphone 3 encoding.&#60;br&#62;&#60;br&#62;
+ *
+ * - Also, the sound that is spelled as "TH" in English is encoded to '0' (zero symbol). (Although
+ * americans are not usually aware of it, "TH" is pronounced in a voiced (e.g. "that") as
+ * well as an unvoiced (e.g. "theater") form, which are naturally mapped to the same encoding.)&#60;br&#62;&#60;br&#62;
+ *
+ * In the "Exact" encoding, voiced/unvoiced pairs are &#60;i&#62;not&#60;/i&#62; mapped to the same encoding, except
+ * for the voiced and unvoiced versions of 'TH', sounds such as 'CH' and 'SH', and for 'S' and 'Z',
+ * so that the words whose metaph keys match will in fact be closer in pronunciation that with the
+ * more approximate setting. Keep in mind that encoding settings for search strings should always
+ * be exactly the same as the encoding settings of the stored metaph keys in your database!
+ * Because of the considerably increased accuracy of Metaphone3, it is now possible to use this
+ * setting and have a very good chance of getting a correct encoding.
+ * &#60;br&#62;&#60;br&#62;
+ * In the Encode Vowels encoding, all non-initial vowels and dipthongs will be encoded to
+ * 'A', and there will only be one such vowel encoding character between any two consonants.
+ * It turns out that there are some surprising wrinkles to encoding non-initial vowels in
+ * practice, pre-eminently in inversions between spelling and pronunciation such as e.g.
+ * "wrinkle" =&#62; 'RANKAL', where the last two sounds are inverted when spelled.
+ * &#60;br&#62;&#60;br&#62;
+ * The encodings in this version of Metaphone 3 are according to pronounciations common in the
+ * United States. This means that they will be innacurate for consonant pronounciations that
+ * are different in the United Kingdom, for example "tube" -&#62; "CHOOBE" -&#62; XAP rather than american TAP.
+ * &#60;br&#62;&#60;br&#62;
+ *
+ */</font>
+<font color="blue">class</font> Metaphone3
+<font color="black">{</font>
+
+        <font color="green">/** Length of word sent in to be encoded, as 
+        * measured at beginning of encoding. */</font>
+        <font color="blue">int</font>  m_length;
+
+        <font color="green">/** Length of encoded key string. */</font>
+        <font color="blue">unsigned</font> <font color="blue">short</font> m_metaphLength;
+
+        <font color="green">/** Flag whether or not to encode non-initial vowels. */</font>
+        <font color="blue">bool</font> m_encodeVowels;
+
+        <font color="green">/** Flag whether or not to encode consonants as exactly 
+        * as possible. */</font>
+        <font color="blue">bool</font> m_encodeExact;
+
+        <font color="green">/** Internal copy of word to be encoded, allocated separately
+        * from string pointed to be incoming parameter. */</font>
+        string m_inWord;
+
+        <font color="green">/** Running copy of primary key. */</font>
+        string m_primary;
+
+        <font color="green">/** Running copy of secondary key. */</font>
+        string m_secondary;
+
+        <font color="green">/** Index of character in m_inWord currently being
+        * encoded. */</font>
+        <font color="blue">int</font> m_current;
+
+        <font color="green">/** Index of last character in m_inWord. */</font>
+        <font color="blue">int</font> m_last;
+
+        <font color="green">/** Flag that an AL inversion has already been done. */</font>
+        <font color="blue">bool</font> flag_AL_inversion;
+
+        <font color="green">// Utility Functions</font>
+        <font color="blue">int</font> SkipVowels<font color="black">(</font><font color="blue">int</font> at<font color="black">)</font>;
+        <font color="blue">void</font> AdvanceCounter<font color="black">(</font><font color="blue">int</font> ifNotEncodeVowels, <font color="blue">int</font> ifEncodeVowels<font color="black">)</font>;
+        <font color="blue">bool</font> IsVowel<font color="black">(</font><font color="blue">int</font> at<font color="black">)</font>;
+        <font color="blue">inline</font> <font color="blue">void</font> MetaphAdd<font color="black">(</font><font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> main<font color="black">)</font>;
+        <font color="blue">inline</font> <font color="blue">void</font> MetaphAdd<font color="black">(</font><font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> main, <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> alt<font color="black">)</font>;
+        <font color="green">// Multiplex String Comparator</font>
+        <font color="blue">bool</font> StringAt<font color="black">(</font><font color="blue">int</font> start, <font color="blue">int</font> length, ... <font color="black">)</font>;
+
+        <font color="green">// Encoding Functions</font>
+        <font color="blue">void</font> Encode_Vowels<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Skip_Silent_UE<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> E_Silent<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">void</font> Encode_E_Pronounced<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_B<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_B<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_C<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CA_To_S<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CO_To_S<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CHAE<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CH_To_H<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_CH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CH_To_X<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_English_CH_To_K<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Germanic_CH_To_K<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_ARCH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Greek_CH_1<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Greek_CH_2<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CCIA<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CC<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CK_CG_CQ<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_C_Front_Vowel<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_C<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_CZ<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_D<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_DG<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_DJ<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_DT_DD<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_D_To_J<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_DOUS<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_D<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_F<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_G<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GG<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GK<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_G<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GN<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GL<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_G_Front_Vowel<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GER<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GEL<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Non_Initial_G_Front_Vowel<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_GA_To_J<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_H<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_Silent_H<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_HS<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_HU_HW<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Non_Initial_Silent_H<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_H_Pronounced<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_J<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_Spanish_J<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_German_J<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Spanish_OJ_UJ<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_J_To_J<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Spanish_J_At_End<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_J_To_J_Exceptions<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">void</font> Encode_Other_J<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_K<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_K<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_L<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_LELY_To_L<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_COLONEL<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_French_AULT<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_French_EUIL<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_L_In_LM<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_L_In_LK_LV<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_L_In_OULD<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_LL_As_Vowel_Special_Cases<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_LL_As_Vowel<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_LL_As_Vowel_Cases<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Vowel_LE_Transposition<font color="black">(</font><font color="blue">int</font> save_current<font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Vowel_Preserve_Vowel_After_L<font color="black">(</font> <font color="blue">int</font> save_current<font color="black">)</font>;
+        <font color="blue">void</font> Encode_LE_Cases<font color="black">(</font><font color="blue">int</font> save_current<font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_M<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_MR_And_MRS<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_MAC<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_MPT<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Test_Silent_MB_1<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Test_Pronounced_MB<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Test_Silent_MB_2<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Test_Pronounced_MB_2<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Test_MN<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">void</font> Encode_MB<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_N<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_NCE<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_P<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_PT<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_PH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_PPH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_RPS<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_COUP<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_PNEUM<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_PSYCH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_PSALM<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">void</font> Encode_PB<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_Q<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_R<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Test_Silent_R<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_S<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SKJOLD<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_French_S_Final<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_French_S_Internal<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_ISL<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_STL<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Christmas<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_STHM<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_ISTEN<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Sugar<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SCH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SUR<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SU<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SSIO<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SS<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SIA<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SIO<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Anglicisations<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SC<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SEA_SUI_SIER<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_SEA<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_T<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_T_Initial<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TCH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Silent_French_T<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TUN_TUL_TUA_TUO<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TUE_TEU_TEOU_TUL_TIE<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TUR_TIU_Suffixes<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TI<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TIENT<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TSCH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TZSCH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TH_Pronounced_Seperately<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TTH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_TH<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_V<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_W<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_WITZ_WICZ<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_WR<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_W_Vowel<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_WH<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Eastern_European_W<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_X<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_Initial_X<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_LUXUR<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_OAXACA<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_X_Vowel<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_French_X_Final<font color="black">(</font><font color="black">)</font>;
+
+        <font color="blue">void</font> Encode_Z<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_ZZ<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_ZU_ZIER_ZS<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_French_EZ<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_German_Z<font color="black">(</font><font color="black">)</font>;
+        <font color="blue">bool</font> Encode_ZH_RZ<font color="black">(</font><font color="black">)</font>;
+
+<font color="blue">public</font><font color="black">:</font>
+        
+        <font color="green">/**
+         * Constructor, default. This constructor is most convenient when
+         * encoding more than one word at a time. The word to encode can
+         * be set using SetWord(char *). 
+         */</font>
+        Metaphone3<font color="black">(</font><font color="black">)</font>;
+
+        <font color="green">/**
+         * Constructor, parameterized. The Metaphone3 object will
+         * be initialized with the incoming string, and can be called
+         * on to encode this string. This constructor is most convenient
+         * when only one word needs to be encoded.
+         * 
+         * @param in pointer to char string of word to be encoded. 
+         */</font>
+        Metaphone3<font color="black">(</font><font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> in<font color="black">)</font>;
+
+        <font color="green">/**
+         * Sets word to be encoded.
+         * 
+         * @param in pointer to EXTERNALLY ALLOCATED char string of 
+         * the word to be encoded. 
+         */</font>
+        <font color="blue">void</font> SetWord<font color="black">(</font><font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> in<font color="black">)</font>;
+
+        <font color="green">/**
+         * Sets length allocated for output keys.
+         * If incoming number is greater than maximum allowable 
+         * length returned by GetMaximumKeyLength(), set key length
+         * to maximum key length and return false;  otherwise, set key 
+         * length to parameter value and return true.
+         * 
+         * @param inKeyLength new length of key.
+         * @return true if able to set key length to requested value. 
+         */</font>
+        <font color="blue">bool</font> SetKeyLength<font color="black">(</font><font color="blue">unsigned</font> <font color="blue">short</font> inKeyLength<font color="black">)</font>;
+
+        <font color="green">/** Retrieves maximum number of characters currently allocated for encoded key. 
+         *
+         * @return short integer representing the length allowed for the key.
+         */</font>
+        <font color="blue">unsigned</font> <font color="blue">short</font> GetKeyLength<font color="black">(</font><font color="black">)</font><font color="black">{</font><font color="blue">return</font> m_metaphLength;<font color="black">}</font>
+
+        <font color="green">/** Retrieves maximum number of characters allowed for encoded key. 
+         *
+         * @return short integer representing the length of allocated storage for the key.
+         */</font>
+        <font color="blue">unsigned</font> <font color="blue">short</font> GetMaximumKeyLength<font color="black">(</font><font color="black">)</font><font color="black">{</font><font color="blue">return</font> <font color="black">(</font><font color="blue">unsigned</font> <font color="blue">short</font><font color="black">)</font>MAX_KEY_ALLOCATION;<font color="black">}</font>
+
+        <font color="green">/** Sets flag that causes Metaphone3 to encode non-initial vowels. However, even 
+         * if there are more than one vowel sound in a vowel sequence (i.e. 
+         * vowel dipthong, etc.), only one 'A' will be encoded before the next consonant or the
+         * end of the word.
+         * @param inEncodeVowels Non-initial vowels encoded if true, not if false. 
+         */</font>
+        <font color="blue">void</font> SetEncodeVowels<font color="black">(</font><font color="blue">bool</font> inEncodeVowels<font color="black">)</font><font color="black">{</font>m_encodeVowels <font color="black">=</font> inEncodeVowels;<font color="black">}</font>
+
+        <font color="green">/** Retrieves setting determining whether or not non-initial vowels will be encoded. 
+         *
+         * @return true if the Metaphone3 object has been set to encode non-initial vowels, false if not.
+         */</font>
+        <font color="blue">bool</font> GetEncodeVowels<font color="black">(</font><font color="black">)</font><font color="black">{</font><font color="blue">return</font> m_encodeVowels;<font color="black">}</font>
+
+        <font color="green">/** Sets flag that causes Metaphone3 to encode consonants as exactly as possible.
+         * This does not include 'S' vs. 'Z', since americans will pronounce 'S' at the
+         * at the end of many words as 'Z', nor does it include "CH" vs. "SH". It does cause
+         * a distinction to be made between 'B' and 'P', 'D' and 'T', 'G' and 'K', and 'V'
+         * and 'F'.
+         *
+         * @param inEncodeExact consonants to be encoded "exactly" if true, not if false. */</font>
+        <font color="blue">void</font> SetEncodeExact<font color="black">(</font><font color="blue">bool</font> inEncodeExact<font color="black">)</font><font color="black">{</font>m_encodeExact <font color="black">=</font> inEncodeExact;<font color="black">}</font>
+
+        <font color="green">/** Retrieves setting determining whether or not consonants will be encoded "exactly".
+         *
+         * @return true if the Metaphone3 object has been set to encode "exactly", false if not.
+         */</font>
+        <font color="blue">bool</font> GetEncodeExact<font color="black">(</font><font color="black">)</font><font color="black">{</font><font color="blue">return</font> m_encodeExact;<font color="black">}</font>
+
+        <font color="green">/** Retrives primary encoded key.
+         *
+         * @return a character pointer to the primary encoded key
+         */</font>
+        <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> GetMetaph<font color="black">(</font><font color="black">)</font><font color="black">{</font><font color="blue">return</font> m_primary.c_str<font color="black">(</font><font color="black">)</font>;<font color="black">}</font>
+
+        <font color="green">/** Retrives alternate encoded key, if any. 
+         *
+         * @return a character pointer to the alternate encoded key
+         */</font>
+        <font color="blue">const</font> <font color="blue">char</font><font color="black">*</font> GetAlternateMetaph<font color="black">(</font><font color="black">)</font><font color="black">{</font><font color="blue">return</font> m_secondary.c_str<font color="black">(</font><font color="black">)</font>;<font color="black">}</font>
+
+        <font color="green">/** Encodes input string to one or two key values according to Metaphone 3 rules.
+         *
+         * Uses internal allocations to store key results. 
+         * PLEASE NOTE, that in order to retrieve the output encoded key strings, the
+         * programmer must use GetMetaph() and GetAlternateMetaph(). 
+         */</font>
+        <font color="blue">void</font> Encode<font color="black">(</font><font color="black">)</font>;
+
+<font color="black">}</font>;
+<font color="blue">#endif</font> <font color="green">// !defined(METAPHONE3_H)</font>
+
+</PRE>
+</BODY>
+</HTML>
