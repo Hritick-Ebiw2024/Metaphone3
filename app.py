@@ -34,12 +34,13 @@ API Examples:
          -d '{"word": "smith", "encode_vowels": true, "encode_exact": true}'
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import logging
 import os
 import sys
 from datetime import datetime
+import json
 
 # Import our Metaphone3 wrapper
 try:
@@ -109,10 +110,216 @@ def health_check():
         "wrapper_initialized": m3_wrapper is not None
     })
 
+# @app.route('/', methods=['POST'])
+# def encode_words():
+#     """
+#     Main encoding endpoint.
+    
+#     Accepts JSON payload with:
+#     - word (string): Single word to encode
+#     - words (list): Multiple words to encode
+#     - encode_vowels (bool, optional): Whether to encode vowels (default: false)
+#     - encode_exact (bool, optional): Whether to use exact encoding (default: false)
+#     - key_length (int, optional): Maximum key length 1-32 (default: 8)
+    
+#     Returns JSON with phonetic encodings.
+#     """
+#     if not m3_wrapper:
+#         return jsonify({
+#             "error": "Metaphone3 wrapper not initialized",
+#             "success": False
+#         }), 500
+    
+#     try:
+#         # Parse JSON payload
+#         data = request.get_json()
+#         if not data:
+#             return jsonify({
+#                 "error": "No JSON data provided",
+#                 "success": False
+#             }), 400
+        
+#         # Extract options
+#         encode_vowels = data.get('encode_vowels', False)
+#         encode_exact = data.get('encode_exact', False)
+#         key_length = data.get('key_length', 8)
+        
+#         # Validate key_length
+#         if not (1 <= key_length <= 32):
+#             return jsonify({
+#                 "error": "key_length must be between 1 and 32",
+#                 "success": False
+#             }), 400
+        
+#         # Handle single word
+#         if 'word' in data:
+#             word = data['word']
+#             if not validate_word(word):
+#                 return jsonify({
+#                     "error": "Invalid word. Must be a non-empty string.",
+#                     "success": False
+#                 }), 400
+            
+#             result = encode_single_word(
+#                 word.strip(), 
+#                 encode_vowels, 
+#                 encode_exact, 
+#                 key_length
+#             )
+            
+#             if result['success']:
+#                 return Response(json.dumps(result), mimetype='application/json')
+#             else:
+#                 return jsonify(result), 500
+        
+#         # Handle multiple words
+#         elif 'words' in data:
+#             words = data['words']
+#             if not isinstance(words, list):
+#                 return jsonify({
+#                     "error": "words must be a list",
+#                     "success": False
+#                 }), 400
+            
+#             if len(words) > 100:  # Limit batch size
+#                 return jsonify({
+#                     "error": "Maximum 100 words per request",
+#                     "success": False
+#                 }), 400
+            
+#             results = []
+#             for word in words:
+#                 if validate_word(word):
+#                     result = encode_single_word(
+#                         word.strip(), 
+#                         encode_vowels, 
+#                         encode_exact, 
+#                         key_length
+#                     )
+#                     results.append(result)
+#                 else:
+#                     results.append({
+#                         "word": str(word),
+#                         "error": "Invalid word",
+#                         "success": False
+#                     })
+            
+#             return jsonify({
+#                 "results": results,
+#                 "success": True,
+#                 "total": len(results)
+#             })
+        
+#         else:
+#             return jsonify({
+#                 "error": "Either 'word' or 'words' must be provided",
+#                 "success": False
+#             }), 400
+            
+#     except Exception as e:
+#         logger.error(f"Error processing request: {e}")
+#         return jsonify({
+#             "error": "Internal server error",
+#             "success": False
+#         }), 500
 @app.route('/', methods=['POST'])
-def encode_words():
+def encode_words_udf():
     """
-    Main encoding endpoint.
+    BigQuery UDF compatible endpoint for Metaphone3 encoding.
+    
+    Accepts JSON payload with:
+    - calls (list): List of function calls, each containing [word] as parameters
+    
+    Returns JSON with:
+    - replies (list): List of encodings in format "primary|alternate" or "INVALID|INVALID"
+    """
+    if not m3_wrapper:
+        return jsonify({
+            "error": "Metaphone3 wrapper not initialized"
+        }), 500
+    
+    try:
+        # Parse JSON payload
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "error": "No JSON data provided"
+            }), 400
+        
+        # Validate input format
+        if 'calls' not in data:
+            return jsonify({
+                "error": "Missing 'calls' field"
+            }), 400
+        
+        calls = data['calls']
+        if not isinstance(calls, list):
+            return jsonify({
+                "error": "'calls' must be a list"
+            }), 400
+        
+        # Process each call
+        replies = []
+        for call in calls:
+            try:
+                # Each call should be a list with one parameter (the word)
+                if not isinstance(call, list) or len(call) != 1:
+                    replies.append("INVALID|INVALID")
+                    continue
+                
+                word = call[0]
+                
+                # Handle empty or invalid words
+                if not word or not isinstance(word, str) or not word.strip():
+                    replies.append("INVALID|INVALID")
+                    continue
+                
+                # Clean the word
+                word = word.strip()
+                
+                # Validate word (assuming you have a validate_word function)
+                if not validate_word(word):
+                    replies.append("INVALID|INVALID")
+                    continue
+                
+                # Encode the word using default settings
+                # You can adjust these parameters as needed
+                result = encode_single_word(
+                    word,
+                    encode_vowels=False,  # Default setting
+                    encode_exact=False,   # Default setting
+                    key_length=8          # Default setting
+                )
+                
+                if result['success']:
+                    # Format as "primary|alternate"
+                    primary = result.get('primary', 'INVALID')
+                    alternate = result.get('alternate', 'INVALID')
+                    replies.append(f"{primary}|{alternate}")
+                else:
+                    replies.append("INVALID|INVALID")
+                    
+            except Exception as e:
+                logger.error(f"Error processing call {call}: {e}")
+                replies.append("INVALID|INVALID")
+        
+        # Return in BigQuery UDF format
+        return jsonify({
+            "replies": replies
+        })
+            
+    except Exception as e:
+        logger.error(f"Error processing UDF request: {e}")
+        return jsonify({
+            "error": "Internal server error"
+        }), 500
+
+
+# Keep the original endpoint for backwards compatibility
+@app.route('/encode', methods=['POST'])
+def encode_words_original():
+    """
+    Original encoding endpoint (for backwards compatibility).
     
     Accepts JSON payload with:
     - word (string): Single word to encode
@@ -221,7 +428,7 @@ def encode_words():
             "error": "Internal server error",
             "success": False
         }), 500
-
+    
 @app.route('/settings', methods=['GET'])
 def get_settings():
     """Get current Metaphone3 settings."""
