@@ -292,16 +292,16 @@ def encode_words_udf():
                 )
                 
                 if result['success']:
-                    # Format as "primary|alternate"
+                    # Format as primary|alternate (without quotes)
                     primary = result.get('primary', 'INVALID')
                     alternate = result.get('alternate', 'INVALID')
-                    replies.append(f"{primary}|{alternate}")
+                    replies.append(f"{primary}")
                 else:
-                    replies.append("INVALID|INVALID")
+                    replies.append("INVALID")
                     
             except Exception as e:
                 logger.error(f"Error processing call {call}: {e}")
-                replies.append("INVALID|INVALID")
+                replies.append("INVALID")
         
         # Return in BigQuery UDF format
         return jsonify({
