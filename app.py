@@ -109,7 +109,7 @@ def health_check():
         "wrapper_initialized": m3_wrapper is not None
     })
 
-@app.route('/encode', methods=['POST'])
+@app.route('/', methods=['POST'])
 def encode_words():
     """
     Main encoding endpoint.
@@ -236,49 +236,49 @@ def get_settings():
         "success": True
     })
 
-@app.route('/', methods=['GET'])
-def root():
-    """Root endpoint with API documentation."""
-    return jsonify({
-        "service": "Metaphone3 Phonetic Encoding API",
-        "version": "1.0",
-        "endpoints": {
-            "POST /encode": {
-                "description": "Encode word(s) phonetically",
-                "parameters": {
-                    "word": "Single word to encode (string)",
-                    "words": "Multiple words to encode (array)",
-                    "encode_vowels": "Encode non-initial vowels (boolean, default: false)",
-                    "encode_exact": "Use exact consonant encoding (boolean, default: false)",
-                    "key_length": "Maximum encoding length (integer, 1-32, default: 8)"
-                }
-            },
-            "GET /health": "Health check",
-            "GET /settings": "Get current settings",
-            "GET /": "This documentation"
-        },
-        "examples": {
-            "single_word": {
-                "url": "/encode",
-                "method": "POST",
-                "body": {"word": "smith"}
-            },
-            "multiple_words": {
-                "url": "/encode", 
-                "method": "POST",
-                "body": {"words": ["smith", "john", "doe"]}
-            },
-            "with_options": {
-                "url": "/encode",
-                "method": "POST", 
-                "body": {
-                    "word": "smith",
-                    "encode_vowels": True,
-                    "encode_exact": True
-                }
-            }
-        }
-    })
+# @app.route('/', methods=['GET'])
+# def root():
+#     """Root endpoint with API documentation."""
+#     return jsonify({
+#         "service": "Metaphone3 Phonetic Encoding API",
+#         "version": "1.0",
+#         "endpoints": {
+#             "POST /encode": {
+#                 "description": "Encode word(s) phonetically",
+#                 "parameters": {
+#                     "word": "Single word to encode (string)",
+#                     "words": "Multiple words to encode (array)",
+#                     "encode_vowels": "Encode non-initial vowels (boolean, default: false)",
+#                     "encode_exact": "Use exact consonant encoding (boolean, default: false)",
+#                     "key_length": "Maximum encoding length (integer, 1-32, default: 8)"
+#                 }
+#             },
+#             "GET /health": "Health check",
+#             "GET /settings": "Get current settings",
+#             "GET /": "This documentation"
+#         },
+#         "examples": {
+#             "single_word": {
+#                 "url": "/encode",
+#                 "method": "POST",
+#                 "body": {"word": "smith"}
+#             },
+#             "multiple_words": {
+#                 "url": "/encode", 
+#                 "method": "POST",
+#                 "body": {"words": ["smith", "john", "doe"]}
+#             },
+#             "with_options": {
+#                 "url": "/encode",
+#                 "method": "POST", 
+#                 "body": {
+#                     "word": "smith",
+#                     "encode_vowels": True,
+#                     "encode_exact": True
+#                 }
+#             }
+#         }
+#     })
 
 @app.errorhandler(404)
 def not_found(error):
